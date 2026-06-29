@@ -152,8 +152,33 @@ export default function App() {
       const updated = transactions.map((t) => (t.id === id ? { ...t, ...updates } : t));
       setTransactions(updated);
       saveTransactions(updated);
+
+      if (updates.category || updates.expenseType) {
+        const txn = updated.find((t) => t.id === id);
+        if (txn) {
+          const newCategory = txn.category;
+          const newType = txn.expenseType;
+          const pattern = txn.payee;
+          const existing = rules.find(
+            (r) => r.pattern === pattern
+          );
+          if (existing) {
+            if (existing.category !== newCategory || existing.expenseType !== newType) {
+              const newRules = rules.map((r) =>
+                r.pattern === pattern ? { ...r, category: newCategory, expenseType: newType } : r
+              );
+              setRules(newRules);
+              saveRules(newRules);
+            }
+          } else {
+            const newRules = [...rules, { pattern, category: newCategory, expenseType: newType }];
+            setRules(newRules);
+            saveRules(newRules);
+          }
+        }
+      }
     },
-    [transactions]
+    [transactions, rules]
   );
 
   const handleDeleteTransaction = useCallback(

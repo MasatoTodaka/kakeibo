@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { ClassificationRule, ExpenseType } from '../types';
 import { CATEGORIES } from '../config/classificationRules';
 
@@ -19,34 +19,60 @@ export function RuleEditor({
   const [newPattern, setNewPattern] = useState('');
   const [newCategory, setNewCategory] = useState(CATEGORIES[0]);
   const [newType, setNewType] = useState<ExpenseType>('variable');
+  const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    setEditRules(rules);
+  }, [rules]);
 
   if (!isOpen) return null;
 
   const handleAdd = () => {
     if (!newPattern.trim()) return;
-    setEditRules([
+    const updated = [
       ...editRules,
       { pattern: newPattern.trim(), category: newCategory, expenseType: newType },
-    ]);
+    ];
+    setEditRules(updated);
+    onSaveRules(updated);
     setNewPattern('');
   };
 
   const handleDelete = (index: number) => {
-    setEditRules(editRules.filter((_, i) => i !== index));
+    const updated = editRules.filter((_, i) => i !== index);
+    setEditRules(updated);
+    onSaveRules(updated);
   };
 
-  const handleSave = () => {
-    onSaveRules(editRules);
-    onClose();
+  const handleUpdate = (index: number, field: 'category' | 'expenseType', value: string) => {
+    const updated = editRules.map((r, i) =>
+      i === index ? { ...r, [field]: value } : r
+    );
+    setEditRules(updated);
+    onSaveRules(updated);
   };
+
+  const filtered = search
+    ? editRules
+        .map((r, i) => ({ rule: r, index: i }))
+        .filter(({ rule }) =>
+          rule.pattern.toLowerCase().includes(search.toLowerCase()) ||
+          rule.category.includes(search)
+        )
+    : editRules.map((r, i) => ({ rule: r, index: i }));
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-xl max-w-3xl w-full max-h-[80vh] flex flex-col">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-800">
-            分類ルール設定
-          </h2>
+          <div>
+            <h2 className="text-lg font-semibold text-gray-800">
+              分類ルール設定
+            </h2>
+            <p className="text-xs text-gray-400 mt-1">
+              {editRules.length}件のルール（変更は即時反映）
+            </p>
+          </div>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600 text-xl"
@@ -55,7 +81,7 @@ export function RuleEditor({
           </button>
         </div>
 
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-6 border-b border-gray-200 space-y-3">
           <div className="flex gap-2 items-end">
             <div className="flex-1">
               <label className="block text-xs text-gray-500 mb-1">
@@ -105,6 +131,13 @@ export function RuleEditor({
               追加
             </button>
           </div>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="ルールを検索..."
+            className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
         </div>
 
         <div className="flex-1 overflow-y-auto p-6">
@@ -118,24 +151,37 @@ export function RuleEditor({
               </tr>
             </thead>
             <tbody>
-              {editRules.map((rule, i) => (
-                <tr key={i} className="border-b border-gray-100">
+              {filtered.map(({ rule, index }) => (
+                <tr key={index} className="border-b border-gray-100">
                   <td className="py-1.5 font-mono text-xs">{rule.pattern}</td>
-                  <td className="py-1.5">{rule.category}</td>
                   <td className="py-1.5">
-                    <span
-                      className={`px-2 py-0.5 rounded text-xs font-medium ${
+                    <select
+                      value={rule.category}
+                      onChange={(e) => handleUpdate(index, 'category', e.target.value)}
+                      className="text-xs border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    >
+                      {CATEGORIES.map((cat) => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td className="py-1.5">
+                    <select
+                      value={rule.expenseType}
+                      onChange={(e) => handleUpdate(index, 'expenseType', e.target.value)}
+                      className={`text-xs border rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-blue-500 ${
                         rule.expenseType === 'fixed'
-                          ? 'bg-orange-100 text-orange-700'
-                          : 'bg-emerald-100 text-emerald-700'
+                          ? 'border-orange-200 bg-orange-50 text-orange-700'
+                          : 'border-emerald-200 bg-emerald-50 text-emerald-700'
                       }`}
                     >
-                      {rule.expenseType === 'fixed' ? '固定費' : '変動費'}
-                    </span>
+                      <option value="fixed">固定費</option>
+                      <option value="variable">変動費</option>
+                    </select>
                   </td>
                   <td className="py-1.5 text-right">
                     <button
-                      onClick={() => handleDelete(i)}
+                      onClick={() => handleDelete(index)}
                       className="text-red-500 hover:text-red-700 text-xs"
                     >
                       削除
@@ -147,18 +193,12 @@ export function RuleEditor({
           </table>
         </div>
 
-        <div className="flex justify-end gap-2 p-6 border-t border-gray-200">
+        <div className="flex justify-end p-6 border-t border-gray-200">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg text-sm font-medium hover:bg-gray-200"
-          >
-            キャンセル
-          </button>
-          <button
-            onClick={handleSave}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700"
           >
-            保存して再分類
+            閉じる
           </button>
         </div>
       </div>
