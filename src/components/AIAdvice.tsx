@@ -1,7 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import type { Transaction, IncomeEntry, BankAccount } from '../types';
 import { CARD_BRAND_LABELS } from '../types';
-import { formatCurrency, getFiscalYear } from '../utils/aggregation';
+import { formatCurrency, getFiscalYear, getFiscalYearLabel, sortByFiscalMonth } from '../utils/aggregation';
 import { getCategorySummaries } from '../utils/aggregation';
 
 interface AIAdviceProps {
@@ -10,10 +10,13 @@ interface AIAdviceProps {
   bankAccounts: BankAccount[];
 }
 
+type ScopeType = 'all' | 'fy' | 'month';
+
 function buildSummary(
   transactions: Transaction[],
   incomeEntries: IncomeEntry[],
-  bankAccounts: BankAccount[]
+  bankAccounts: BankAccount[],
+  scopeLabel: string
 ): string {
   const totalExpense = transactions.reduce((s, t) => s + t.amount, 0);
   const totalIncome = incomeEntries.reduce((s, e) => s + e.amount, 0);
@@ -32,21 +35,17 @@ function buildSummary(
     cardUsage.set(t.cardBrand, (cardUsage.get(t.cardBrand) || 0) + t.amount);
   });
 
-  const fySet = new Set<string>();
-  transactions.forEach((t) => fySet.add(getFiscalYear(t.date.substring(0, 7))));
-
   const lines = [
-    `## 家計データサマリー`,
-    `- 対象期間: ${monthCount}ヶ月分 (年度: ${[...fySet].sort().join(', ')})`,
+    `## 家計データサマリー（${scopeLabel}）`,
     `- 銀行口座残高合計: ${formatCurrency(totalBalance)} (${bankAccounts.length}口座)`,
     `- 収入合計: ${formatCurrency(totalIncome)}`,
-    `- 支出合計: ${formatCurrency(totalExpense)} (月平均: ${formatCurrency(avgMonthly)})`,
+    `- 支出合計: ${formatCurrency(totalExpense)} (月平均: ${formatCurrency(avgMonthly)}、${monthCount}ヶ月分)`,
     `- 固定費: ${formatCurrency(fixed)} (${totalExpense > 0 ? ((fixed / totalExpense) * 100).toFixed(1) : 0}%)`,
     `- 変動費: ${formatCurrency(variable)} (${totalExpense > 0 ? ((variable / totalExpense) * 100).toFixed(1) : 0}%)`,
     `- 収支差額: ${formatCurrency(totalIncome - totalExpense)}`,
     ``,
     `### カテゴリ別支出`,
-    ...categories.slice(0, 10).map(
+    ...categories.slice(0, 12).map(
       (c) => `- ${c.category}: ${formatCurrency(c.amount)} (${c.count}件, ${c.expenseType === 'fixed' ? '固定費' : '変動費'})`
     ),
     ``,
@@ -71,13 +70,61 @@ export function AIAdvice({ transactions, incomeEntries, bankAccounts }: AIAdvice
   const [error, setError] = useState('');
   const [collapsed, setCollapsed] = useState(false);
   const [userPrompt, setUserPrompt] = useState(DEFAULT_PROMPT);
+  const [scopeType, setScopeType] = useState<ScopeType>('all');
+  const [selectedFY, setSelectedFY] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState('');
+
+  // 利用可能な年度・月リストを構築
+  const { fiscalYears, months } = useMemo(() => {
+    const fySet = new Set<string>();
+    const monthSet = new Set<string>();
+    transactions.forEach((t) => {
+      const m = t.date.substring(0, 7);
+      fySet.add(getFiscalYear(m));
+      monthSet.add(m);
+    });
+    incomeEntries.forEach((e) => {
+      const m = e.date.substring(0, 7);
+      fySet.add(getFiscalYear(m));
+      monthSet.add(m);
+    });
+    return {
+      fiscalYears: [...fySet].sort(),
+      months: [...monthSet].sort(sortByFiscalMonth),
+    };
+  }, [transactions, incomeEntries]);
+
+  // デフォルト選択を最新にする
+  const defaultFY = fiscalYears[fiscalYears.length - 1] ?? '';
+  const defaultMonth = months[months.length - 1] ?? '';
+  const effectiveFY = selectedFY || defaultFY;
+  const effectiveMonth = selectedMonth || defaultMonth;
+
+  // スコープに応じてデータを絞り込む
+  const filteredTransactions = useMemo(() => {
+    if (scopeType === 'fy') return transactions.filter((t) => getFiscalYear(t.date.substring(0, 7)) === effectiveFY);
+    if (scopeType === 'month') return transactions.filter((t) => t.date.startsWith(effectiveMonth));
+    return transactions;
+  }, [transactions, scopeType, effectiveFY, effectiveMonth]);
+
+  const filteredIncome = useMemo(() => {
+    if (scopeType === 'fy') return incomeEntries.filter((e) => getFiscalYear(e.date.substring(0, 7)) === effectiveFY);
+    if (scopeType === 'month') return incomeEntries.filter((e) => e.date.startsWith(effectiveMonth));
+    return incomeEntries;
+  }, [incomeEntries, scopeType, effectiveFY, effectiveMonth]);
+
+  const scopeLabel = scopeType === 'fy'
+    ? getFiscalYearLabel(effectiveFY)
+    : scopeType === 'month'
+      ? `${effectiveMonth.replace('-', '年')}月`
+      : '全期間';
 
   const handleAnalyze = useCallback(async () => {
     setLoading(true);
     setError('');
     setAdvice('');
     try {
-      const summary = buildSummary(transactions, incomeEntries, bankAccounts);
+      const summary = buildSummary(filteredTransactions, filteredIncome, bankAccounts, scopeLabel);
       const res = await fetch('/api/advice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -95,7 +142,7 @@ export function AIAdvice({ transactions, incomeEntries, bankAccounts }: AIAdvice
     } finally {
       setLoading(false);
     }
-  }, [transactions, incomeEntries, bankAccounts, userPrompt]);
+  }, [filteredTransactions, filteredIncome, bankAccounts, scopeLabel, userPrompt]);
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
@@ -106,10 +153,56 @@ export function AIAdvice({ transactions, incomeEntries, bankAccounts }: AIAdvice
         <h2 className="text-lg font-semibold text-gray-800">AI家計アドバイス</h2>
       </div>
 
+      {/* 分析対象期間 */}
       <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          質問・分析依頼
-        </label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">分析対象</label>
+        <div className="flex flex-wrap gap-2 items-center">
+          {(['all', 'fy', 'month'] as ScopeType[]).map((t) => (
+            <button
+              key={t}
+              onClick={() => setScopeType(t)}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                scopeType === t ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {t === 'all' ? '全期間' : t === 'fy' ? '年度指定' : '月指定'}
+            </button>
+          ))}
+
+          {scopeType === 'fy' && (
+            <select
+              value={effectiveFY}
+              onChange={(e) => setSelectedFY(e.target.value)}
+              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              {fiscalYears.map((fy) => (
+                <option key={fy} value={fy}>{getFiscalYearLabel(fy)}</option>
+              ))}
+            </select>
+          )}
+
+          {scopeType === 'month' && (
+            <select
+              value={effectiveMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              {months.map((m) => {
+                const [y, mo] = m.split('-');
+                return <option key={m} value={m}>{y}年{parseInt(mo)}月</option>;
+              })}
+            </select>
+          )}
+
+          <span className="text-xs text-gray-400">
+            → {scopeLabel}（{filteredTransactions.length}件）
+          </span>
+        </div>
+      </div>
+
+      {/* プロンプト入力 */}
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-1">質問・分析依頼</label>
         <textarea
           value={userPrompt}
           onChange={(e) => setUserPrompt(e.target.value)}
@@ -122,7 +215,7 @@ export function AIAdvice({ transactions, incomeEntries, bankAccounts }: AIAdvice
       <div className="flex justify-end mb-4">
         <button
           onClick={handleAnalyze}
-          disabled={loading || transactions.length === 0 || !userPrompt.trim()}
+          disabled={loading || filteredTransactions.length === 0 || !userPrompt.trim()}
           className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {loading ? '分析中...' : '分析する'}
@@ -130,9 +223,7 @@ export function AIAdvice({ transactions, incomeEntries, bankAccounts }: AIAdvice
       </div>
 
       {error && (
-        <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm mb-4">
-          {error}
-        </div>
+        <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm mb-4">{error}</div>
       )}
 
       {advice && (
@@ -141,10 +232,8 @@ export function AIAdvice({ transactions, incomeEntries, bankAccounts }: AIAdvice
             onClick={() => setCollapsed(!collapsed)}
             className="w-full flex items-center justify-between mb-2"
           >
-            <span className="text-sm text-gray-500">分析結果</span>
-            <span className={`text-gray-400 transition-transform ${collapsed ? '' : 'rotate-180'}`}>
-              &#9660;
-            </span>
+            <span className="text-sm text-gray-500">分析結果（{scopeLabel}）</span>
+            <span className={`text-gray-400 transition-transform ${collapsed ? '' : 'rotate-180'}`}>&#9660;</span>
           </button>
           {!collapsed && (
             <div className="prose prose-sm max-w-none text-gray-700 bg-gradient-to-br from-indigo-50/50 to-purple-50/50 rounded-lg p-4 whitespace-pre-wrap leading-relaxed">
@@ -155,9 +244,7 @@ export function AIAdvice({ transactions, incomeEntries, bankAccounts }: AIAdvice
       )}
 
       {!advice && !loading && !error && (
-        <p className="text-sm text-gray-400">
-          「家計を分析する」ボタンを押すと、AIが収支データを分析してアドバイスを提供します
-        </p>
+        <p className="text-sm text-gray-400">対象期間と質問を入力して「分析する」を押してください</p>
       )}
     </div>
   );
