@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.106.0",
+    "@google/genai": "^2.10.0",
     "@types/papaparse": "^5.5.2",
     "papaparse": "^5.5.4",
     "react": "^19.2.7",

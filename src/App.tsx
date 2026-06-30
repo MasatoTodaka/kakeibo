@@ -31,6 +31,7 @@ import { BankAccountPanel } from './components/BankAccountPanel';
 import { IncomePanel } from './components/IncomePanel';
 import { AnnualSummary } from './components/AnnualSummary';
 import { ManualEntry } from './components/ManualEntry';
+import { AIAdvice } from './components/AIAdvice';
 import { exportJSON, importJSON, exportCSV } from './utils/exportImport';
 
 type TabId = 'expense' | 'annual';
@@ -513,6 +514,11 @@ export default function App() {
                   />
                 </div>
                 <AnnualSummary
+                  transactions={transactions}
+                  incomeEntries={incomeEntries}
+                  bankAccounts={bankAccounts}
+                />
+                <AIAdvice
                   transactions={transactions}
                   incomeEntries={incomeEntries}
                   bankAccounts={bankAccounts}
