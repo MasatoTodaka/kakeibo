@@ -27,21 +27,17 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
       req.on('error', reject);
     });
 
-    const { summary } = JSON.parse(body);
+    const { summary, userPrompt } = JSON.parse(body);
 
     const prompt = `あなたは日本の家計管理と資産形成の専門家です。
-以下の家計データを分析し、日本語で具体的なアドバイスをしてください。
+以下の家計データをもとに、ユーザーの依頼に日本語で回答してください。
+数値を使って具体的に、わかりやすく答えてください。
 
-【分析の観点】
-- 収支バランスの評価（固定費率、貯蓄率など）
-- 支出の改善ポイント
-- 投資・資産形成の提案
-- 具体的な行動提案（優先度順に3つ）
+【家計データ】
+${summary}
 
-数値を使って具体的に、わかりやすく回答してください。
-
----
-${summary}`;
+【ユーザーの依頼】
+${userPrompt || '収支バランスを評価し、改善点と資産形成のアドバイスを教えてください。'}`;
 
     const geminiRes = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
       method: 'POST',

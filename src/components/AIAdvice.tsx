@@ -59,11 +59,18 @@ function buildSummary(
   return lines.join('\n');
 }
 
+const DEFAULT_PROMPT = `以下の観点から分析し、日本語で具体的なアドバイスをしてください。
+- 収支バランスの評価（固定費率、貯蓄率など）
+- 支出の改善ポイント
+- 投資・資産形成の提案
+- 具体的な行動提案（優先度順に3つ）`;
+
 export function AIAdvice({ transactions, incomeEntries, bankAccounts }: AIAdviceProps) {
   const [advice, setAdvice] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [collapsed, setCollapsed] = useState(false);
+  const [userPrompt, setUserPrompt] = useState(DEFAULT_PROMPT);
 
   const handleAnalyze = useCallback(async () => {
     setLoading(true);
@@ -74,7 +81,7 @@ export function AIAdvice({ transactions, incomeEntries, bankAccounts }: AIAdvice
       const res = await fetch('/api/advice', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ summary }),
+        body: JSON.stringify({ summary, userPrompt }),
       });
       const data = await res.json();
       if (data.error) {
@@ -84,27 +91,41 @@ export function AIAdvice({ transactions, incomeEntries, bankAccounts }: AIAdvice
         setCollapsed(false);
       }
     } catch {
-      setError('APIへの接続に失敗しました。');
+      setError('APIへの接続に失敗しました。Vercel URL (kakeibo-app-sandy.vercel.app) からアクセスしているか確認してください。');
     } finally {
       setLoading(false);
     }
-  }, [transactions, incomeEntries, bankAccounts]);
+  }, [transactions, incomeEntries, bankAccounts, userPrompt]);
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold">
-            AI
-          </div>
-          <h2 className="text-lg font-semibold text-gray-800">AI家計アドバイス</h2>
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold">
+          AI
         </div>
+        <h2 className="text-lg font-semibold text-gray-800">AI家計アドバイス</h2>
+      </div>
+
+      <div className="mb-4">
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          質問・分析依頼
+        </label>
+        <textarea
+          value={userPrompt}
+          onChange={(e) => setUserPrompt(e.target.value)}
+          rows={4}
+          placeholder="例: 来年マンションを購入したい場合の貯蓄計画を教えてください"
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-y"
+        />
+      </div>
+
+      <div className="flex justify-end mb-4">
         <button
           onClick={handleAnalyze}
-          disabled={loading || transactions.length === 0}
+          disabled={loading || transactions.length === 0 || !userPrompt.trim()}
           className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          {loading ? '分析中...' : '家計を分析する'}
+          {loading ? '分析中...' : '分析する'}
         </button>
       </div>
 
