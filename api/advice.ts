@@ -1,15 +1,21 @@
 import type { IncomingMessage, ServerResponse } from 'http';
-import { GoogleGenAI } from '@google/genai';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? '' });
+const GEMINI_API_URL =
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent';
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Content-Type', 'application/json');
 
   if (req.method !== 'POST') {
     res.statusCode = 405;
     res.end(JSON.stringify({ error: 'Method not allowed' }));
+    return;
+  }
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    res.statusCode = 500;
+    res.end(JSON.stringify({ error: 'GEMINI_API_KEY が設定されていません' }));
     return;
   }
 
@@ -37,13 +43,29 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
 ---
 ${summary}`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-1.5-flash',
-      contents: prompt,
+    const geminiRes = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { maxOutputTokens: 2048, temperature: 0.7 },
+      }),
     });
 
+    if (!geminiRes.ok) {
+      const errText = await geminiRes.text();
+      res.statusCode = 500;
+      res.end(JSON.stringify({ error: errText }));
+      return;
+    }
+
+    const data = await geminiRes.json() as {
+      candidates?: { content?: { parts?: { text?: string }[] } }[];
+    };
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+
     res.statusCode = 200;
-    res.end(JSON.stringify({ advice: response.text ?? '' }));
+    res.end(JSON.stringify({ advice: text }));
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Unknown error';
     res.statusCode = 500;
