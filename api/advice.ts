@@ -1,14 +1,27 @@
+import type { IncomingMessage, ServerResponse } from 'http';
 import { GoogleGenAI } from '@google/genai';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY ?? '' });
 
-export default async function handler(req: Request) {
+export default async function handler(req: IncomingMessage, res: ServerResponse) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Content-Type', 'application/json');
+
   if (req.method !== 'POST') {
-    return new Response('Method not allowed', { status: 405 });
+    res.statusCode = 405;
+    res.end(JSON.stringify({ error: 'Method not allowed' }));
+    return;
   }
 
   try {
-    const { summary } = await req.json();
+    const body = await new Promise<string>((resolve, reject) => {
+      let data = '';
+      req.on('data', (chunk) => (data += chunk));
+      req.on('end', () => resolve(data));
+      req.on('error', reject);
+    });
+
+    const { summary } = JSON.parse(body);
 
     const prompt = `あなたは日本の家計管理と資産形成の専門家です。
 以下の家計データを分析し、日本語で具体的なアドバイスをしてください。
@@ -29,15 +42,11 @@ ${summary}`;
       contents: prompt,
     });
 
-    return new Response(
-      JSON.stringify({ advice: response.text ?? '' }),
-      { headers: { 'Content-Type': 'application/json' } }
-    );
+    res.statusCode = 200;
+    res.end(JSON.stringify({ advice: response.text ?? '' }));
   } catch (e: unknown) {
     const message = e instanceof Error ? e.message : 'Unknown error';
-    return new Response(JSON.stringify({ error: message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    res.statusCode = 500;
+    res.end(JSON.stringify({ error: message }));
   }
 }
