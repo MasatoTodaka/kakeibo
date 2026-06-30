@@ -150,9 +150,8 @@ export default function App() {
 
   const handleUpdateTransaction = useCallback(
     (id: string, updates: Partial<Transaction>) => {
-      const updated = transactions.map((t) => (t.id === id ? { ...t, ...updates } : t));
-      setTransactions(updated);
-      saveTransactions(updated);
+      // まず対象明細だけ更新
+      let updated = transactions.map((t) => (t.id === id ? { ...t, ...updates } : t));
 
       if (updates.category || updates.expenseType) {
         const txn = updated.find((t) => t.id === id);
@@ -160,24 +159,31 @@ export default function App() {
           const newCategory = txn.category;
           const newType = txn.expenseType;
           const pattern = txn.payee;
-          const existing = rules.find(
-            (r) => r.pattern === pattern
-          );
+
+          // ルールを追加または更新
+          let newRules: ClassificationRule[];
+          const existing = rules.find((r) => r.pattern === pattern);
           if (existing) {
-            if (existing.category !== newCategory || existing.expenseType !== newType) {
-              const newRules = rules.map((r) =>
-                r.pattern === pattern ? { ...r, category: newCategory, expenseType: newType } : r
-              );
-              setRules(newRules);
-              saveRules(newRules);
-            }
+            newRules = rules.map((r) =>
+              r.pattern === pattern ? { ...r, category: newCategory, expenseType: newType } : r
+            );
           } else {
-            const newRules = [...rules, { pattern, category: newCategory, expenseType: newType }];
-            setRules(newRules);
-            saveRules(newRules);
+            newRules = [...rules, { pattern, category: newCategory, expenseType: newType }];
           }
+          setRules(newRules);
+          saveRules(newRules);
+
+          // 同じ支払先の他の明細を一括再分類
+          updated = updated.map((t) =>
+            t.payee === pattern && t.id !== id
+              ? { ...t, category: newCategory, expenseType: newType }
+              : t
+          );
         }
       }
+
+      setTransactions(updated);
+      saveTransactions(updated);
     },
     [transactions, rules]
   );
