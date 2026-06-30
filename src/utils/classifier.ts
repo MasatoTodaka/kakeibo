@@ -38,6 +38,7 @@ const KEYWORD_HINTS: { keywords: string[]; category: string; expenseType: Expens
   { keywords: ['飲食', '食堂', '弁当', 'ランチ', 'ディナー', 'RESTAURANT', 'DINING', 'CAFE', 'COFFEE', 'デリバリー', 'DELIVERY', 'EATS', '居酒屋', '焼肉', '寿司', 'すし', 'ラーメン', 'うどん', 'そば', 'ピザ', 'PIZZA', 'バーガー', 'BURGER'], category: '外食費', expenseType: 'variable' },
   // 交通
   { keywords: ['タクシー', '鉄道', '航空', '高速', 'TAXI', 'TRAIN', 'AIRLINE', 'FLIGHT', 'バス', 'BUS', '乗車', '運賃', '定期券'], category: '交通費', expenseType: 'variable' },
+  { keywords: ['ガソリン', 'ENEOS', '出光', 'IDEMITSU', 'シェル', 'SHELL', '給油'], category: 'ガソリン代', expenseType: 'fixed' },
   // 日用品
   { keywords: ['ドラッグ', 'DRUG', '日用品', '洗剤', 'ホームセンター', 'DIY', 'HOMECENTER'], category: '日用品', expenseType: 'variable' },
   // 医療
