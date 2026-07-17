@@ -2,11 +2,12 @@ import type { CardBrand } from '../types';
 import { parseSMBC } from './smbc';
 import { parseAEON } from './aeon';
 import { parseEPOS } from './epos';
+import { parsePayPay } from './paypay';
 import type { RawTransaction } from './smbc';
 
 export type { RawTransaction };
 
-const ALL_BRANDS: CardBrand[] = ['epos', 'aeon', 'smbc'];
+const ALL_BRANDS: CardBrand[] = ['paypay', 'epos', 'aeon', 'smbc'];
 
 export function detectCardBrand(csvText: string, fileName?: string): CardBrand | null {
   // ファイル名による判定（CSV内にヘッダーが無いカード向け）
@@ -17,6 +18,9 @@ export function detectCardBrand(csvText: string, fileName?: string): CardBrand |
   }
 
   const head = csvText.substring(0, 2000);
+
+  // PayPay: 取引履歴CSVのヘッダーキーワード
+  if (head.includes('取引日') && head.includes('取引方法') && head.includes('取引番号')) return 'paypay';
 
   // エポスカード: CSVヘッダーのキーワード
   if (head.includes('種別') && head.includes('ご利用年月日')) return 'epos';
@@ -50,6 +54,8 @@ export function parseCSV(csvText: string, cardBrand: CardBrand): RawTransaction[
       return parseAEON(csvText);
     case 'epos':
       return parseEPOS(csvText);
+    case 'paypay':
+      return parsePayPay(csvText);
     case 'manual':
       return [];
   }

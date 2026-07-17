@@ -5,6 +5,7 @@ export type CardBrand =
   | 'smbc'
   | 'aeon'
   | 'epos'
+  | 'paypay'
   | 'manual';
 
 export type ExpenseType = 'fixed' | 'variable';
@@ -82,6 +83,7 @@ export const CARD_BRAND_LABELS: Record<CardBrand, string> = {
   smbc: '三井住友カード',
   aeon: 'イオンカード',
   epos: 'エポスカード',
+  paypay: 'PayPayカード',
   manual: '現金・口座引落',
 };
 
@@ -92,5 +94,6 @@ export const CARD_BRAND_COLORS: Record<CardBrand, { bg: string; text: string; ch
   smbc: { bg: 'bg-green-100', text: 'text-green-700', chart: '#22C55E' },
   aeon: { bg: 'bg-purple-100', text: 'text-purple-700', chart: '#A855F7' },
   epos: { bg: 'bg-red-100', text: 'text-red-700', chart: '#EF4444' },
+  paypay: { bg: 'bg-rose-100', text: 'text-rose-700', chart: '#F43F5E' },
   manual: { bg: 'bg-cyan-100', text: 'text-cyan-700', chart: '#06B6D4' },
 };
