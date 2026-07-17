@@ -93,7 +93,7 @@ export const CARD_BRAND_COLORS: Record<CardBrand, { bg: string; text: string; ch
   'amazon-master': { bg: 'bg-slate-100', text: 'text-slate-700', chart: '#475569' },
   smbc: { bg: 'bg-green-100', text: 'text-green-700', chart: '#22C55E' },
   aeon: { bg: 'bg-purple-100', text: 'text-purple-700', chart: '#A855F7' },
-  epos: { bg: 'bg-red-100', text: 'text-red-700', chart: '#EF4444' },
+  epos: { bg: 'bg-gray-200', text: 'text-gray-700', chart: '#C0C0C0' },
   paypay: { bg: 'bg-rose-100', text: 'text-rose-700', chart: '#F43F5E' },
   manual: { bg: 'bg-cyan-100', text: 'text-cyan-700', chart: '#06B6D4' },
 };
