@@ -84,7 +84,7 @@ export const CARD_BRAND_LABELS: Record<CardBrand, string> = {
   aeon: 'イオンカード',
   epos: 'エポスカード',
   paypay: 'PayPayカード',
-  manual: '現金・口座引落',
+  manual: '現金・PayPay・口座引落',
 };
 
 export const CARD_BRAND_COLORS: Record<CardBrand, { bg: string; text: string; chart: string }> = {

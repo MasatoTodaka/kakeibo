@@ -59,7 +59,7 @@ export function parsePayPay(csvText: string): RawTransaction[] {
     const payee = (row[payeeCol] || '').trim();
     if (!payee) continue;
 
-    // クレジット払い → PayPayカード、PayPay残高・銀行口座払い → 現金・口座引落
+    // クレジット払い → PayPayカード、PayPay残高・銀行口座払い → 現金・PayPay・口座引落
     const isCredit = method.includes('クレジット');
 
     transactions.push({
