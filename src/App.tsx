@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from 'react';
 import type { Transaction, CardBrand, ClassificationRule, BankAccount, IncomeEntry } from './types';
 import { parseCSV, autoParseCSV, readFileAsText } from './parsers';
 import { getFiscalYear, sortByFiscalMonth } from './utils/aggregation';
-import { classifyTransactions } from './utils/classifier';
+import { classifyTransactions, generateTransactionId } from './utils/classifier';
 import {
   loadRules,
   saveRules,
@@ -54,7 +54,21 @@ export default function App() {
 
   useEffect(() => {
     setRules(loadRules());
-    setTransactions(loadTransactions());
+    // 旧バージョンは連番IDがページ再読み込みでリセットされ重複IDが発生していたため、
+    // 重複があればIDを振り直して保存し直す
+    const loaded = loadTransactions();
+    const seen = new Set<string>();
+    let hadDuplicates = false;
+    const repaired = loaded.map((t) => {
+      if (seen.has(t.id)) {
+        hadDuplicates = true;
+        return { ...t, id: generateTransactionId() };
+      }
+      seen.add(t.id);
+      return t;
+    });
+    if (hadDuplicates) saveTransactions(repaired);
+    setTransactions(repaired);
     setBankAccounts(loadBankAccounts());
     setIncomeEntries(loadIncomeEntries());
   }, []);

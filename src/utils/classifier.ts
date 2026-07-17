@@ -3,6 +3,12 @@ import type { RawTransaction } from '../parsers';
 
 let idCounter = 0;
 
+export function generateTransactionId(): string {
+  // カウンタだけだとページ再読み込みでリセットされ、過去の明細とIDが衝突するため
+  // タイムスタンプ + ランダム値で一意にする
+  return `txn-${Date.now()}-${(++idCounter).toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 function normalize(s: string): string {
   return s
     .replace(/[Ａ-Ｚａ-ｚ０-９]/g, (ch) =>
@@ -71,7 +77,7 @@ export function classifyTransaction(
   for (const rule of rules) {
     if (normalizedPayee.includes(normalize(rule.pattern))) {
       return {
-        id: `txn-${++idCounter}`,
+        id: generateTransactionId(),
         date: raw.date,
         payee: raw.payee,
         amount: raw.amount,
@@ -86,7 +92,7 @@ export function classifyTransaction(
   const inferred = inferCategory(normalizedPayee);
 
   return {
-    id: `txn-${++idCounter}`,
+    id: generateTransactionId(),
     date: raw.date,
     payee: raw.payee,
     amount: raw.amount,
