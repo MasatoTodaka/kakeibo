@@ -53,6 +53,8 @@ export function parsePayPay(csvText: string): RawTransaction[] {
     if (method.includes('ポイント')) continue;
     // 残高チャージは資金移動であり支出ではない（残高からの支払い側で計上）
     if (content === 'チャージ') continue;
+    // 個人間送金（送った金額・受け取った金額）は家計簿の対象外
+    if (content.includes('送った金額') || content.includes('受け取った金額')) continue;
 
     const payee = (row[payeeCol] || '').trim();
     if (!payee) continue;
