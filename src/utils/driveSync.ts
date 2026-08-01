@@ -88,14 +88,20 @@ function loadGis(): Promise<any> {
 }
 
 // silent=true: 過去に許可済みならポップアップなしでトークン再取得を試みる
-export async function requestAccessToken(clientId: string, silent: boolean): Promise<boolean> {
-  const oauth2 = await loadGis();
+// 成功時は null、失敗時はエラーメッセージを返す
+export async function requestAccessToken(clientId: string, silent: boolean): Promise<string | null> {
+  let oauth2: any;
+  try {
+    oauth2 = await loadGis();
+  } catch (e) {
+    return e instanceof Error ? e.message : 'Googleログイン機能の読み込みに失敗しました';
+  }
   return new Promise((resolve) => {
     let settled = false;
-    const done = (ok: boolean) => {
+    const done = (error: string | null) => {
       if (!settled) {
         settled = true;
-        resolve(ok);
+        resolve(error);
       }
     };
     try {
@@ -105,18 +111,27 @@ export async function requestAccessToken(clientId: string, silent: boolean): Pro
         callback: (resp: any) => {
           if (resp?.access_token) {
             accessToken = resp.access_token;
-            done(true);
+            done(null);
           } else {
-            done(false);
+            done(resp?.error_description || resp?.error || '認証がキャンセルされました');
           }
         },
-        error_callback: () => done(false),
+        error_callback: (err: any) => {
+          const type = err?.type || '';
+          if (type === 'popup_failed_to_open') {
+            done('ポップアップがブロックされています。ブラウザのポップアップ許可を確認してください');
+          } else if (type === 'popup_closed') {
+            done('ログイン画面が閉じられました');
+          } else {
+            done(err?.message || type || 'Googleログインに失敗しました');
+          }
+        },
       });
       client.requestAccessToken({ prompt: silent ? '' : 'consent' });
       // サイレント時に応答が返らないケースのタイムアウト
-      if (silent) setTimeout(() => done(false), 15000);
-    } catch {
-      done(false);
+      if (silent) setTimeout(() => done('自動再接続がタイムアウトしました'), 15000);
+    } catch (e) {
+      done(e instanceof Error ? e.message : 'Googleログインの初期化に失敗しました');
     }
   });
 }

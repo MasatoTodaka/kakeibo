@@ -48,6 +48,7 @@ export function DriveSyncPanel({
   const [showSettings, setShowSettings] = useState(false);
   const [status, setStatus] = useState<SyncStatus>('disconnected');
   const [lastSync, setLastSync] = useState<Date | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // 最新データを同期処理から参照するためのref
   const dataRef = useRef({ transactions, rules, bankAccounts, incomeEntries });
@@ -79,11 +80,13 @@ export function DriveSyncPanel({
       await uploadRemote(buildPayload(savedAt));
       setStatus('synced');
       setLastSync(new Date());
+      setErrorMsg(null);
     } catch (e) {
       if (e instanceof DriveAuthError) {
         connectedRef.current = false;
         setStatus('auth-expired');
       } else {
+        setErrorMsg(e instanceof Error ? e.message : '同期に失敗しました');
         setStatus('error');
       }
     }
@@ -107,10 +110,15 @@ export function DriveSyncPanel({
       connectedRef.current = true;
       setStatus('synced');
       setLastSync(new Date());
+      setErrorMsg(null);
     } catch (e) {
       connectedRef.current = false;
-      if (e instanceof DriveAuthError) setStatus('auth-expired');
-      else setStatus('error');
+      if (e instanceof DriveAuthError) {
+        setStatus('auth-expired');
+      } else {
+        setErrorMsg(e instanceof Error ? e.message : '同期に失敗しました');
+        setStatus('error');
+      }
     }
   }, [buildPayload, onApplyRemote]);
 
@@ -118,9 +126,16 @@ export function DriveSyncPanel({
     async (silent: boolean) => {
       const id = getClientId();
       if (!id) return;
+      setErrorMsg(null);
+      if (!id.endsWith('.apps.googleusercontent.com')) {
+        setErrorMsg('クライアントIDの形式が正しくありません（末尾が .apps.googleusercontent.com のIDを貼り付けてください）');
+        setStatus('error');
+        return;
+      }
       setStatus('connecting');
-      const ok = await requestAccessToken(id, silent);
-      if (!ok) {
+      const error = await requestAccessToken(id, silent);
+      if (error) {
+        if (!silent) setErrorMsg(error);
         setStatus(silent ? 'auth-expired' : 'disconnected');
         return;
       }
@@ -190,6 +205,10 @@ export function DriveSyncPanel({
             : ''}
         </span>
       </div>
+
+      {errorMsg && (
+        <p className="px-3 text-xs text-red-400 break-words">{errorMsg}</p>
+      )}
 
       {!clientId || showSettings ? (
         <div className="px-3 space-y-1.5">
