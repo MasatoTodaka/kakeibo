@@ -33,6 +33,23 @@
 - 年間収支サマリー（収入・支出・収支バランス）
 - 銀行口座残高・収入の記録
 
+### Googleドライブ同期
+家計データをGoogleドライブの非公開領域（アプリデータフォルダ）に自動保存できます。
+
+- サイドバーの「Googleドライブ同期」からGoogleアカウントでログインすると、データ変更のたびに自動アップロード
+- 別の端末・ブラウザで接続すれば、新しい方のデータが自動で反映される（複数端末での利用が可能）
+- 保存先はドライブのアプリ専用領域のため、他のファイルにはアクセスしません
+
+初回のみ [Google Cloud Console](https://console.cloud.google.com/apis/credentials) でOAuthクライアントIDの作成が必要です:
+
+1. プロジェクトを作成（Gemini APIキー取得時のものでも可）し、「APIとサービス > ライブラリ」で **Google Drive API** を有効化
+2. 「APIとサービス > OAuth同意画面」でアプリを設定（テストユーザーに自分のGoogleアカウントを追加）
+3. 「認証情報 > 認証情報を作成 > OAuthクライアントID」で種類「ウェブアプリケーション」を選択し、**承認済みのJavaScript生成元**に利用するURLを追加
+   - `https://kakeibo-app-sandy.vercel.app`
+   - `https://masatotodaka.github.io`
+   - `http://localhost:5173`（ローカル開発用）
+4. 発行されたクライアントIDをアプリのサイドバー「Googleドライブ同期」の設定欄に貼り付け
+
 ### AI家計分析（Vercel版のみ）
 Google Gemini APIを使って、収支バランスや資産形成についてファイナンシャルプランナー視点のアドバイスを生成します。
 

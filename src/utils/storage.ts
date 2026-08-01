@@ -1,5 +1,11 @@
 import type { ClassificationRule, Transaction, BankAccount, IncomeEntry } from '../types';
 import { DEFAULT_RULES } from '../config/classificationRules';
+import { setLocalModifiedAt } from './driveSync';
+
+// 保存＝データ変更とみなして更新時刻を記録（ドライブ同期の新旧判定に使用）
+function touchModified(): void {
+  setLocalModifiedAt(Date.now());
+}
 
 const RULES_KEY = 'kakeibo_rules';
 const TRANSACTIONS_KEY = 'kakeibo_transactions';
@@ -16,6 +22,7 @@ export function loadRules(): ClassificationRule[] {
 
 export function saveRules(rules: ClassificationRule[]): void {
   localStorage.setItem(RULES_KEY, JSON.stringify(rules));
+  touchModified();
 }
 
 export function loadTransactions(): Transaction[] {
@@ -28,10 +35,12 @@ export function loadTransactions(): Transaction[] {
 
 export function saveTransactions(transactions: Transaction[]): void {
   localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(transactions));
+  touchModified();
 }
 
 export function clearTransactions(): void {
   localStorage.removeItem(TRANSACTIONS_KEY);
+  touchModified();
 }
 
 export function loadBankAccounts(): BankAccount[] {
@@ -42,6 +51,7 @@ export function loadBankAccounts(): BankAccount[] {
 
 export function saveBankAccounts(accounts: BankAccount[]): void {
   localStorage.setItem(BANK_ACCOUNTS_KEY, JSON.stringify(accounts));
+  touchModified();
 }
 
 export function loadIncomeEntries(): IncomeEntry[] {
@@ -52,6 +62,7 @@ export function loadIncomeEntries(): IncomeEntry[] {
 
 export function saveIncomeEntries(entries: IncomeEntry[]): void {
   localStorage.setItem(INCOME_KEY, JSON.stringify(entries));
+  touchModified();
 }
 
 const IMPORTED_FILES_KEY = 'kakeibo_imported_files';
@@ -67,7 +78,12 @@ export function addImportedHash(hash: string): void {
   if (!hashes.includes(hash)) {
     hashes.push(hash);
     localStorage.setItem(IMPORTED_FILES_KEY, JSON.stringify(hashes));
+    touchModified();
   }
+}
+
+export function saveImportedHashes(hashes: string[]): void {
+  localStorage.setItem(IMPORTED_FILES_KEY, JSON.stringify(hashes));
 }
 
 export function clearImportedHashes(): void {

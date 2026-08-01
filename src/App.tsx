@@ -15,6 +15,7 @@ import {
   saveIncomeEntries,
   loadImportedHashes,
   addImportedHash,
+  saveImportedHashes,
   clearImportedHashes,
   hashFileContent,
 } from './utils/storage';
@@ -33,6 +34,8 @@ import { AnnualSummary } from './components/AnnualSummary';
 import { ManualEntry } from './components/ManualEntry';
 import { AIAdvice } from './components/AIAdvice';
 import { exportJSON, importJSON, exportCSV } from './utils/exportImport';
+import { DriveSyncPanel } from './components/DriveSyncPanel';
+import type { SyncData } from './utils/driveSync';
 
 type TabId = 'expense' | 'annual';
 
@@ -329,6 +332,18 @@ export default function App() {
     input.click();
   }, []);
 
+  const handleApplyRemote = useCallback((data: SyncData) => {
+    setTransactions(data.transactions || []);
+    setRules(data.rules || []);
+    setBankAccounts(data.bankAccounts || []);
+    setIncomeEntries(data.incomeEntries || []);
+    saveTransactions(data.transactions || []);
+    saveRules(data.rules || []);
+    saveBankAccounts(data.bankAccounts || []);
+    saveIncomeEntries(data.incomeEntries || []);
+    saveImportedHashes(data.importedHashes || []);
+  }, []);
+
   const hasData = transactions.length > 0 || incomeEntries.length > 0;
 
   return (
@@ -382,6 +397,15 @@ export default function App() {
           >
             バックアップ復元
           </button>
+          <div className="mt-2 pt-2 border-t border-slate-700/50">
+            <DriveSyncPanel
+              transactions={transactions}
+              rules={rules}
+              bankAccounts={bankAccounts}
+              incomeEntries={incomeEntries}
+              onApplyRemote={handleApplyRemote}
+            />
+          </div>
           {transactions.length > 0 && (
             <>
               <button
