@@ -87,6 +87,12 @@ function loadGis(): Promise<any> {
   return gisPromise;
 }
 
+// スクリプトを事前読み込みしておく（接続ボタン押下時にクリック操作の
+// コンテキスト内でポップアップを開けるようにし、ブロックを防ぐ）
+export function preloadGis(): void {
+  loadGis().catch(() => {});
+}
+
 // silent=true: 過去に許可済みならポップアップなしでトークン再取得を試みる
 // 成功時は null、失敗時はエラーメッセージを返す
 export async function requestAccessToken(clientId: string, silent: boolean): Promise<string | null> {

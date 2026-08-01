@@ -12,6 +12,7 @@ import {
   setLocalModifiedAt,
   hasToken,
   clearToken,
+  preloadGis,
   requestAccessToken,
   fetchRemote,
   uploadRemote,
@@ -153,10 +154,11 @@ export function DriveSyncPanel({
     setLastSync(null);
   }, []);
 
-  // ページ読み込み時に自動再接続
+  // ページ読み込み時にスクリプトを事前読み込みし、設定済みなら自動再接続
   useEffect(() => {
-    if (getClientId() && getAutoConnect()) {
-      handleConnect(true);
+    if (getClientId()) {
+      preloadGis();
+      if (getAutoConnect()) handleConnect(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -182,6 +184,7 @@ export function DriveSyncPanel({
     setClientId(clientIdInput);
     setClientIdState(clientIdInput.trim());
     setShowSettings(false);
+    preloadGis();
   };
 
   const connected = status === 'synced' || status === 'syncing';
